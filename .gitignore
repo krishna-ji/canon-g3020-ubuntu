@@ -1,10 +1,24 @@
-# Build artifacts
+# Build output (install.sh extracts + builds here)
 build/
+
+# Debian / package build artifacts
 *.deb
 *.ddeb
 *.buildinfo
 *.changes
+*.dsc
+
+# Extracted Canon sources — only the tarballs under src/ are tracked
+/cnijfilter2-source-*/
+/scangearmp2-source-*/
+
+# Logs
+*.log
 
 # Editor / OS cruft
 *~
+*.swp
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
