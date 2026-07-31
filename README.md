@@ -32,7 +32,7 @@ That's it. When it finishes you can print from any app, check ink with
 ## What you get
 
 | Feature | How |
-|---|---|
+| --- | --- |
 | **Printing** | `cnijfilter2` CUPS driver + a `Canon_G3020` queue set as default |
 | **Scanning** | `scangearmp2` GUI **and** driverless `sane-airscan` (eSCL/WSD) |
 | **Ink levels** | `canon-ink` command (reads the printer over IPP) |
@@ -74,12 +74,14 @@ Options:
 ## Using it
 
 ### Print
+
 Your default printer becomes **`Canon_G3020`**. Just print from any app.
 
 > With the Canon backend, a small job can take ~30–60 s to leave the queue
 > because the driver does an ink/status handshake after sending. That's normal.
 
 ### Check ink
+
 ```console
 $ canon-ink
 Canon printer @ 192.168.1.65 — ink / cartridge levels:
@@ -89,13 +91,16 @@ Canon printer @ 192.168.1.65 — ink / cartridge levels:
   Yellow         [########--]  80%
   MC             [######----]  60%
 ```
+
 `canon-ink [printer-ip]` if it isn't at the default address. You can also open
 `http://<printer-ip>` for Canon's web UI.
 
 ### Scan
+
 - **GUI (easy):** open **Document Scanner** (`simple-scan`) → *Scan* → *Save* as PDF/JPEG.
 - **GUI (Canon):** run `scangearmp2` for full resolution/mode/preview control.
 - **CLI:**
+
   ```bash
   scanimage -L                       # find the scanner
   scanimage --mode Color --resolution 300 -o ~/scan.png
@@ -111,6 +116,7 @@ Canon printer @ 192.168.1.65 — ink / cartridge levels:
   re-run `./install.sh` (it re-detects and rebuilds the queue). If a stale
   `implicitclass://` queue reappears, `sudo systemctl disable --now cups-browsed`.
 - **Printer at a different IP** — re-run `./install.sh` (auto-detect) or:
+
   ```bash
   sudo lpadmin -p Canon_G3020 -E -v socket://<IP>:9100 -P /usr/share/ppd/canong3020.ppd
   ```
@@ -141,7 +147,7 @@ The drivers were written against a ~2020 toolchain. Getting them onto Ubuntu
 [`docs/PORTING.md`](docs/PORTING.md)):
 
 | # | Problem on the new OS | Fix |
-|---|---|---|
+| --- | --- | --- |
 | 1 | gcc 15 uses **C23** — implicit declarations, `int`/pointer mismatches are now **errors** | build via `tools/cc`/`tools/cxx` wrappers adding `-fcommon -std=gnu17 -Wno-error …` |
 | 2 | `debian/compat = 4` rejected by **debhelper 13** | bump to `10` |
 | 3 | Build-dep **`libcupsys2-dev`** no longer exists | replace with `libcups2-dev` |

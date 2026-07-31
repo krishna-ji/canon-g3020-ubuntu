@@ -10,7 +10,7 @@ make them build, install and run. Everything here is applied automatically by
 Canon distributes two source packages for the PIXMA G3020:
 
 | Package | Version | Provides |
-|---|---|---|
+| --- | --- | --- |
 | `cnijfilter2` | 6.10-1 | CUPS raster/command filters + `cnijbe2` backend + PPDs + status monitor (`cnijlgmon3`) |
 | `scangearmp2` | 4.10-1 | SANE/USB scanner engine + a GTK2 GUI (`scangearmp2`) |
 
@@ -180,9 +180,11 @@ Worth recording, because it saved a lot of edits:
   during jobs (it reads `CONTENT_TYPE`/`PPD` and the job data on stdin). For an
   on-demand readout we instead query the printer directly over **IPP**, which
   reports standard `marker-names` / `marker-levels`:
+
   ```bash
   ipptool -tv ipp://<ip>/ipp/print get-printer-attributes.test | grep marker
   ```
+
   [`tools/canon-ink`](../tools/canon-ink) wraps that into a friendly bar chart.
 
 ## Reproducing the build by hand
