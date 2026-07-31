@@ -1,0 +1,23 @@
+#!/bin/bash
+# canon-ink — show Canon G3020 ink/marker levels via IPP.
+# Usage: canon-ink [printer-ip]   (default 192.168.1.65)
+IP="${1:-192.168.1.65}"
+
+out="$(ipptool -tv "ipp://$IP/ipp/print" get-printer-attributes.test 2>/dev/null)"
+names="$(printf '%s\n' "$out" | sed -n 's/.*marker-names[^=]*= //p')"
+levels="$(printf '%s\n' "$out" | sed -n 's/.*marker-levels[^=]*= //p')"
+
+if [ -z "$names" ] || [ -z "$levels" ]; then
+    echo "Could not read ink levels from $IP (printer off or unreachable?)."
+    exit 1
+fi
+
+echo "Canon printer @ $IP — ink / cartridge levels:"
+IFS=',' read -ra N <<< "$names"
+IFS=',' read -ra L <<< "$levels"
+for i in "${!N[@]}"; do
+    lvl="${L[$i]//[!0-9]/}"; [ -z "$lvl" ] && lvl=0
+    full=$(( lvl / 10 )); bar=""
+    for j in $(seq 1 10); do [ "$j" -le "$full" ] && bar+="#" || bar+="-"; done
+    printf "  %-14s [%s] %3d%%\n" "${N[$i]}" "$bar" "$lvl"
+done
