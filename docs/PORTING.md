@@ -2,8 +2,9 @@
 
 This document explains, in detail, **why** Canon's 2020 driver sources fail to
 build on a current Ubuntu (26.04, gcc 15) and **exactly what was changed** to
-make them build, install and run. Everything here is applied automatically by
-[`../install.sh`](../install.sh); this file is the human-readable rationale.
+make them build, install and run. The fixes live in the extracted driver trees
+under [`../src/`](../src/). [`../install.sh`](../install.sh) builds those trees
+without editing them.
 
 ## Background
 
@@ -49,22 +50,18 @@ scripts *overwrite* `CFLAGS` (e.g. `scangearmp2/configure.in` literally does
 `CFLAGS="-O2 -D_FILE_OFFSET_BITS=64"`), so anything exported into the
 environment is discarded during `configure`.
 
-**Fix — compiler wrappers.** We point `CC`/`CXX` at tiny wrapper scripts
-([`tools/cc`](../tools/cc), [`tools/cxx`](../tools/cxx)) that always append the
-needed flags and then exec the real compiler:
+**Fix:** export compiler commands with the compatibility flags in each
+package's `debian/rules`:
 
-```sh
-# tools/cc
-exec gcc -fcommon -std=gnu17 -Wno-error \
-    -Wno-implicit-function-declaration -Wno-implicit-int \
-    -Wno-int-conversion -Wno-incompatible-pointer-types \
-    -Wno-return-mismatch "$@"
+```make
+export CC = gcc -std=gnu17 -fcommon -Wno-error \
+	-Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion \
+	-Wno-incompatible-pointer-types -Wno-return-mismatch
+export CXX = g++ -fcommon -fpermissive -Wno-error -Wno-narrowing
 ```
 
-Autoconf records `CC` verbatim and reuses it for every compile *and* link step,
-so the flags survive even when `configure.in` clobbers `CFLAGS`. `CXX` gets
-`-fcommon -fpermissive -Wno-error -Wno-narrowing`. This is the cleanest fix
-because **no Canon source file is edited**.
+Autoconf records `CC` and `CXX` and reuses them for compile and link steps,
+so the flags survive even when `configure.in` clobbers `CFLAGS`.
 
 ### 2. `debian/compat = 4` is rejected by debhelper 13
 
@@ -76,7 +73,7 @@ the rules to the `dh $@` sequencer.
 
 ### 3. Renamed build dependency `libcupsys2-dev`
 
-`cnijfilter2/debian/control` build-depends on `libcupsys2-dev`, a name retired
+The printer's `debian/control` build-depends on `libcupsys2-dev`, a name retired
 many Ubuntu releases ago.
 
 **Fix:** replace it with `libcups2-dev` (and, while we're there, add the
@@ -89,7 +86,7 @@ Canon's `autogen.sh` does `libtool --version` as a sanity check. On modern
 Ubuntu the `libtool` package ships only `libtoolize` and the m4 macros — the
 `/usr/bin/libtool` wrapper script moved to a **separate package**.
 
-**Fix:** install **`libtool-bin`**. (Symptom if missing:
+**Fix:** declare **`libtool-bin`** as a build dependency. (Symptom if missing:
 `**Error**: You must have 'libtool' installed.` during `configure`.)
 
 ### 5. `lgmon3` needs libxml2 development files
@@ -97,7 +94,7 @@ Ubuntu the `libtool` package ships only `libtoolize` and the m4 macros — the
 The status-monitor component includes `<libxml/parser.h>` and calls
 `xml2-config`.
 
-**Fix:** install **`libxml2-dev`**. (Symptom if missing:
+**Fix:** declare **`libxml2-dev`** as a printer build dependency. (Symptom if missing:
 `fatal error: libxml/parser.h: No such file or directory`.)
 
 ### 6. debhelper now *executes* executable config files
@@ -112,7 +109,8 @@ debian/docs: Syntax error: "(" unexpected
 dh_installdocs: error: debian/docs (executable config) returned exit code ...
 ```
 
-**Fix:** `chmod -x debian/docs` in both packages so it's treated as a list.
+**Fix:** keep `debian/docs` non-executable in both source trees so debhelper
+treats it as a list.
 
 ### 7. `Rules-Requires-Root` default flipped to `no`
 
@@ -143,9 +141,8 @@ job-printer-state-message = "No suitable destination host found by cups-browsed,
 That is why "it wasn't printing" even though the hardware was fine.
 
 **Fix:** create a *permanent* queue bound to Canon's `cnijbe2://` backend and
-`sudo systemctl disable --now cups-browsed` so the broken duplicate can't be
-recreated. (Re-enable with `systemctl enable --now cups-browsed` if you rely on
-automatic discovery of other printers.)
+make it the system default. Select `Canon_G3020` if an application still
+shows a driverless duplicate.
 
 ---
 
@@ -189,17 +186,17 @@ Worth recording, because it saved a lot of edits:
 
 ## Reproducing the build by hand
 
-```bash
-sudo apt-get install build-essential debhelper fakeroot autoconf automake \
-  libtool libtool-bin pkg-config intltool gettext libcups2-dev libxml2-dev \
-  libgtk2.0-dev libglib2.0-dev libusb-1.0-0-dev libsane-dev
+Run these commands from the repository root. Build in a scratch directory
+because Autotools generates files in the source trees it builds from:
 
-tar xzf src/cnijfilter2-source-6.10-1.tar.gz
-cd cnijfilter2-source-6.10-1
-echo 10 > debian/compat
-chmod -x debian/docs
-sed -i 's/^Build-Depends:.*/Build-Depends: debhelper (>= 10), libcups2-dev, libxml2-dev, libtool, autoconf, automake, pkg-config/' debian/control
-sed -i '/^Standards-Version:/a Rules-Requires-Root: binary-targets' debian/control
-CC=../tools/cc CXX=../tools/cxx dpkg-buildpackage -b -us -uc -d
-# → ../cnijfilter2_6.10-1_amd64.deb   (repeat analogously for scangearmp2)
+```bash
+sudo apt-get update
+sudo apt-get install build-essential
+sudo apt-get build-dep ./src/cnijfilter2-source-6.10-1 ./src/scangearmp2-source-4.10-1
+
+work_dir=$(mktemp -d)
+cp -a src/cnijfilter2-source-6.10-1 src/scangearmp2-source-4.10-1 "$work_dir/"
+(cd "$work_dir/cnijfilter2-source-6.10-1" && dpkg-buildpackage -b -us -uc)
+(cd "$work_dir/scangearmp2-source-4.10-1" && dpkg-buildpackage -b -us -uc)
+# The two .deb files are in $work_dir.
 ```

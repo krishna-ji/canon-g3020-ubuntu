@@ -1,6 +1,0 @@
-#!/bin/sh
-# g++ wrapper: relax modern C++ strictness for 2020-era Canon C++ code on gcc 15.
-exec g++ -fcommon -fpermissive \
-    -Wno-error \
-    -Wno-narrowing \
-    "$@"

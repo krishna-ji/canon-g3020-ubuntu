@@ -7,9 +7,9 @@ Canon only publishes 2020-era source packages (`cnijfilter2` 6.10 and
 `scangearmp2` 4.10). Those sources **do not build** on a current toolchain —
 gcc 15 defaults to C23 and rejects the old code, `debhelper` rejects the old
 compat level, a build dependency was renamed years ago, and more. This repo
-carries Canon's original sources plus a small, well-documented set of patches
-and a one-shot installer that produces clean `.deb` packages and wires
-everything up.
+carries both Canon source trees under [`src/`](src/), with the portability
+fixes built in. `install.sh` builds the `.deb` packages and sets up the drivers.
+No Canon downloads are needed; APT supplies the Ubuntu dependencies.
 
 > Not affiliated with Canon. Canon's redistributed sources remain © Canon Inc.
 > See [`NOTICE`](NOTICE).
@@ -19,13 +19,14 @@ everything up.
 ## TL;DR
 
 ```bash
-git clone https://github.com/<you>/canon-g3020-ubuntu.git
+git clone https://github.com/krishna-ji/canon-g3020-ubuntu.git
 cd canon-g3020-ubuntu
 ./install.sh
 ```
 
-That's it. When it finishes you can print from any app, check ink with
-`canon-ink`, and scan with **Document Scanner** / `scangearmp2` / `scanimage`.
+The installer configures a print queue if it discovers one G3020 on the
+network. Check ink with `canon-ink <printer-ip>` and scan with `scangearmp2`,
+`scanimage`, or **Document Scanner** if you have it installed.
 
 ---
 
@@ -50,24 +51,41 @@ USB should also work via the same driver.
 
 ## What the installer does
 
-1. **Installs dependencies** (build tools + CUPS/SANE dev libraries).
-2. **Extracts** Canon's original tarballs from `src/` into `build/`.
-3. **Patches** them for the modern toolchain — see
-   [`docs/PORTING.md`](docs/PORTING.md) for the full story.
-4. **Builds** both packages using thin compiler wrappers
-   ([`tools/cc`](tools/cc), [`tools/cxx`](tools/cxx)) that make 2020-era
-   C/C++ compile under gcc 15.
-5. **Installs** the resulting `.deb` files and the `canon-ink` helper.
-6. **Configures** a `Canon_G3020` CUPS queue using Canon's `cnijbe2://`
-   network backend, and disables the buggy `cups-browsed` auto-queue.
+1. **Installs dependencies** from Ubuntu using the driver packages' own
+   `debian/control` files.
+2. **Builds** both packages from temporary copies of the local source trees
+   and saves the `.deb` files in `build/`. See [`docs/PORTING.md`](docs/PORTING.md)
+   for the fixes in the source trees.
+3. **Installs** the packages, CUPS/SANE utilities, and the `canon-ink` helper.
+4. **Configures** a `Canon_G3020` CUPS queue using Canon's `cnijbe2://`
+   network backend if exactly one G3020 is discovered.
 
 Options:
 
 ```bash
-./install.sh --no-queue     # build + install drivers only
-./install.sh --build-only   # just produce the .deb files under build/
-./uninstall.sh              # remove queue, packages and helper
+./install.sh --no-queue               # install without configuring CUPS
+./install.sh --build-only             # install build dependencies and produce .deb files
+./install.sh --build-only --skip-deps # build offline without sudo if dependencies are installed
+./uninstall.sh                        # remove queue, packages and helper
 ```
+
+### Prebuilt packages
+
+[GitHub Releases](https://github.com/krishna-ji/canon-g3020-ubuntu/releases)
+has the same two `.deb` files that `install.sh` writes to `build/`, built
+for Ubuntu 26.04 (`amd64`):
+
+- `canon-g3020-printer_6.10-1_amd64.deb`
+- `canon-g3020-scanner_4.10-1_amd64.deb`
+
+To install just the driver packages, download both files and run this from
+their download directory:
+
+```bash
+sudo apt install ./canon-g3020-printer_6.10-1_amd64.deb ./canon-g3020-scanner_4.10-1_amd64.deb
+```
+
+Use `./install.sh` for automatic CUPS queue setup and the `canon-ink` helper.
 
 ---
 
@@ -75,7 +93,7 @@ Options:
 
 ### Print
 
-Your default printer becomes **`Canon_G3020`**. Just print from any app.
+Once configured, **`Canon_G3020`** is the system default. Print from any app.
 
 > With the Canon backend, a small job can take ~30–60 s to leave the queue
 > because the driver does an ink/status handshake after sending. That's normal.
@@ -127,14 +145,14 @@ Canon printer @ 192.168.1.65 — ink / cartridge levels:
 
 ```
 canon-g3020-ubuntu/
-├── install.sh              # one-shot: deps → patch → build → install → configure
+├── install.sh              # one-shot: dependencies → build → install → configure
 ├── uninstall.sh
 ├── tools/
-│   ├── cc  cxx             # gcc-15 compatibility compiler wrappers
 │   └── canon-ink           # ink-level readout via IPP
-├── src/                    # Canon's ORIGINAL source tarballs (unmodified)
-│   ├── cnijfilter2-source-6.10-1.tar.gz
-│   └── scangearmp2-source-4.10-1.tar.gz
+├── src/                    # extracted Canon sources, packaging, and vendor libraries
+│   ├── cnijfilter2-source-6.10-1/
+│   └── scangearmp2-source-4.10-1/
+├── build/                  # generated .deb files (ignored by Git)
 ├── docs/PORTING.md         # how this was ported old → new + every change
 ├── NOTICE                  # licensing / attribution
 └── README.md
@@ -148,14 +166,14 @@ The drivers were written against a ~2020 toolchain. Getting them onto Ubuntu
 
 | # | Problem on the new OS | Fix |
 | --- | --- | --- |
-| 1 | gcc 15 uses **C23** — implicit declarations, `int`/pointer mismatches are now **errors** | build via `tools/cc`/`tools/cxx` wrappers adding `-fcommon -std=gnu17 -Wno-error …` |
+| 1 | gcc 15 uses **C23** — implicit declarations, `int`/pointer mismatches are now **errors** | set legacy GCC compatibility flags in each package's `debian/rules` |
 | 2 | `debian/compat = 4` rejected by **debhelper 13** | bump to `10` |
 | 3 | Build-dep **`libcupsys2-dev`** no longer exists | replace with `libcups2-dev` |
 | 4 | `autogen.sh` needs the `libtool` binary | install **`libtool-bin`** |
 | 5 | `lgmon3` needs libxml2 headers | install **`libxml2-dev`** |
 | 6 | debhelper now **executes** executable config files; Canon shipped `debian/docs` as 0775 | `chmod -x debian/docs` |
 | 7 | `dpkg` now defaults **`Rules-Requires-Root: no`**, so `install -o lp -g lp` fails | add `Rules-Requires-Root: binary-targets` (+ `fakeroot`) |
-| 8 | `cups-browsed` auto-created a broken `implicitclass://` queue ("No suitable destination host found") | permanent Canon queue + disable `cups-browsed` |
+| 8 | `cups-browsed` auto-created a broken `implicitclass://` queue ("No suitable destination host found") | create and default to the permanent Canon queue |
 
 Notably, several *deprecated* autotools macros (`AM_CONFIG_HEADER`, 2-arg
 `AM_INIT_AUTOMAKE`, `AC_PROG_LIBTOOL`) still work on automake 1.18 / autoconf

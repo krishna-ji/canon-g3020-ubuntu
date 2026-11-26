@@ -1,0 +1,15 @@
+Source: scangearmp2
+Section: graphics
+Priority: optional
+Maintainer: Canon Inc. <sup-debian@mail.canon>
+Build-Depends: debhelper (>= 10), fakeroot, autoconf, automake, libtool,
+ libtool-bin, pkg-config, intltool, gettext, libgtk2.0-dev, libglib2.0-dev,
+ libusb-1.0-0-dev, libsane-dev
+Standards-Version: 3.7.2
+Rules-Requires-Root: binary-targets
+
+Package: scangearmp2
+Architecture: amd64 i386
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ScanGear MP for Linux.
+ This ScanGear MP provides scanning functions for Canon Multifunction Inkjet Printer.

@@ -2,17 +2,18 @@ NOTICE — third-party source and licensing
 ==========================================
 
 This repository redistributes Canon's official Linux driver *source* packages
-for the PIXMA G3020, unmodified, under `src/`:
+for the PIXMA G3020 as extracted source trees under `src/`, with local
+build fixes described in `docs/PORTING.md`:
 
-  • cnijfilter2-source-6.10-1.tar.gz   — Canon IJ Printer Driver
-  • scangearmp2-source-4.10-1.tar.gz   — Canon ScanGear MP scanner driver
+  • cnijfilter2-source-6.10-1/   — Canon IJ Printer Driver
+  • scangearmp2-source-4.10-1/  — Canon ScanGear MP scanner driver
 
     Copyright CANON INC. 2001-2020
 
 These packages are made available by Canon for Linux users. The open-source
 portions (the CUPS filters, SANE glue, build system) are licensed under the
-GNU General Public License, version 2 (see the LICENSE.txt / COPYING files
-inside each tarball). They also contain Canon's proprietary, closed-source
+GNU General Public License, version 2 (see the LICENSE / COPYING files
+in each source tree). They also contain Canon's proprietary, closed-source
 binary libraries (e.g. libcnnet2, libcnbpcnclapicom2, libcncp*), which remain
 the property of Canon Inc. and are redistributed here as-is for convenience.
 

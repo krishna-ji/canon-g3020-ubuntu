@@ -1,5 +1,5 @@
-# Build output (install.sh extracts + builds here)
-build/
+# Packages produced by install.sh
+/build/
 
 # Debian / package build artifacts
 *.deb
@@ -7,10 +7,6 @@ build/
 *.buildinfo
 *.changes
 *.dsc
-
-# Extracted Canon sources — only the tarballs under src/ are tracked
-/cnijfilter2-source-*/
-/scangearmp2-source-*/
 
 # Logs
 *.log
